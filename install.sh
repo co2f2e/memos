@@ -44,6 +44,14 @@ echo
 
 read -p "是否为 UseMemos 生成 systemd 服务并启用？(y/N) " yn
 if [[ "$yn" =~ ^([yY][eE][sS]|[yY])$ ]]; then
+
+  read -p "是否通过子路径访问（例如 /memos）？(y/N) " baseyn
+  BASE_PATH=""
+  if [[ "$baseyn" =~ ^([yY][eE][sS]|[yY])$ ]]; then
+    read -p "请输入访问路径（以 / 开头，例如 /memos）: " input_path
+    BASE_PATH="--base-path $input_path"
+  fi
+
   echo "⚙️  正在创建 systemd 服务..."
   sudo tee /etc/systemd/system/$SERVICE_NAME.service > /dev/null <<EOF
 [Unit]
@@ -52,7 +60,7 @@ After=network.target
 
 [Service]
 Type=simple
-ExecStart=$INSTALL_DIR/memos --mode prod --port $PORT --data $DATA_DIR
+ExecStart=$INSTALL_DIR/memos --mode prod --port $PORT --data $DATA_DIR $BASE_PATH
 Restart=always
 RestartSec=3
 
