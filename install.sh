@@ -6,9 +6,14 @@ DATA_DIR="/var/lib/memos"
 SERVICE_NAME="memos"
 PORT=$1
 
+if [ -z "$PORT" ]; then
+  echo "❌ 请提供运行端口，例如: $0 7000"
+  exit 1
+fi
+
 echo "📦 开始 UseMemos 二进制安装脚本"
 
-echo "🔍 获取最新 UseMemos 版本..."
+echo "🔍 获取最新 UseMemos release 版本..."
 LATEST_URL=$(curl -s https://api.github.com/repos/usememos/memos/releases/latest \
   | grep "browser_download_url.*memos_.*_linux_amd64.tar.gz" \
   | cut -d '"' -f 4)
@@ -21,13 +26,27 @@ echo "➡️ 最新下载地址: $LATEST_URL"
 
 TMPDIR=$(mktemp -d)
 ARCHIVE="$TMPDIR/memos.tar.gz"
+
 echo "⬇️ 正在下载二进制包..."
 curl -L "$LATEST_URL" -o "$ARCHIVE"
 
-echo "📂 解压并安装..."
+echo "📂 解压二进制..."
 tar -xzf "$ARCHIVE" -C "$TMPDIR"
+
+if [ -f "$INSTALL_DIR/memos" ]; then
+  echo "🗑️  删除旧版本 $INSTALL_DIR/memos"
+  sudo rm -f "$INSTALL_DIR/memos"
+fi
+
+echo "📂 安装新版本..."
 sudo mv "$TMPDIR/memos" "$INSTALL_DIR/"
 sudo chmod +x "$INSTALL_DIR/memos"
+
+if "$INSTALL_DIR/memos" --help | grep -q -- "--base-path"; then
+  echo "✅ 二进制支持 --base-path"
+else
+  echo "⚠️ 二进制不支持 --base-path，请确认是否为官方最新 release"
+fi
 
 echo "📁 创建数据目录: $DATA_DIR"
 sudo mkdir -p "$DATA_DIR"
@@ -39,7 +58,7 @@ echo "   - 二进制路径: $INSTALL_DIR/memos"
 echo "   - 数据目录:   $DATA_DIR"
 echo
 echo "💡 运行 Memos:"
-echo "   memos --mode prod --port $PORT --data $DATA_DIR"
+echo "   memos --mode prod --addr 127.0.0.1 --port $PORT --data $DATA_DIR"
 echo
 
 read -p "是否为 UseMemos 生成 systemd 服务并启用？(y/N) " yn
@@ -60,7 +79,7 @@ After=network.target
 
 [Service]
 Type=simple
-ExecStart=$INSTALL_DIR/memos --mode prod --port $PORT --data $DATA_DIR $BASE_PATH
+ExecStart=$INSTALL_DIR/memos --mode prod --addr 127.0.0.1 --port $PORT --data $DATA_DIR $BASE_PATH
 Restart=always
 RestartSec=3
 
